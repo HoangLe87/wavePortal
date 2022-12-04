@@ -1,82 +1,162 @@
 import React, { useEffect, useState } from "react";
+import { ethers } from "ethers";
+import wavePortal from "./utils/WavePortal.json";
 
 const getEthereumObject = () => window.ethereum;
 
-
-const findMetaMaskAccount = async() => {
-  try {
-    const ethereum = getEthereumObject()
-    if (!ethereum) {
-      console.log('Please install metamask')
-      return null
-    }
-    console.log(`We have etherium object ${ethereum}`)
-    const accounts = await ethereum.request({ method: "eth_accounts" });
-    if (accounts.length !== 0) {
-      const account = accounts[0];
-      console.log("Found an authorized account:", account);
-      return account;
-    } else {
-      console.error("No authorized account found");
-      return null;
-    }
-  } catch(error) {
-    console.log(error)
-    return null;
-  }
-}
-
-
 export default function App() {
+  const contractAddress = "0x96Ab3B37Cc28A2BB361889a735e307270ae0d0d6";
   const [currentAccount, setCurrentAccount] = useState("");
+  const [allWaves, setAllWaves] = useState([]);
+  const [inputMessage, setInputMessage] = useState("");
 
-  const connectWallet = async() => {
+  const checkIfWalletIsConnected = async () => {
     try {
-      const ethereum = getEthereumObject()
+      const { ethereum } = window;
       if (!ethereum) {
-        alert("get metamask")
-        return
+        console.log("please install metamask");
+        return;
+      } else {
+        console.log(`Found ethereum object ${ethereum}`);
       }
-      const accounts = ethereum.request({method: "eth_requestAccounts"});
-      console.log("Connected", accounts[0]);
-      setCurrentAccount(accounts[0]);
-    } catch(error) {
-      console.log(error)
+      const accounts = await ethereum.request({ method: "eth_accounts" });
+      if (accounts.length !== 0) {
+        const account = accounts[0];
+        console.log(`Found authorised acccount ${account}`);
+        setCurrentAccount(account);
+        getAllWaves();
+      } else {
+        console.log("No authorised accounts found");
+      }
+    } catch (error) {
+      console.log(error);
     }
-  }
+  };
 
-  useEffect(()=> {
-    const getAccount = async() => {
-      const account = await findMetaMaskAccount()
-      if (!account!=null) {
-        setCurrentAccount(account)
+  const connectWallet = async () => {
+    try {
+      const ethereum = getEthereumObject();
+      if (!ethereum) {
+        alert("Get metamask");
+        return;
       }
+      const accounts = ethereum.request({ method: "eth_requestAccounts" });
+      console.log(`Connected with ${accounts[0]}`);
+      setCurrentAccount(accounts[0]);
+    } catch (error) {
+      console.log(error);
     }
-    getAccount()
-  }, [])
+  };
+
+  const wave = async (e) => {
+    e.preventDefault();
+    try {
+      const { ethereum } = window;
+      if (ethereum) {
+        const provider = new ethers.providers.Web3Provider(ethereum);
+        const signer = provider.getSigner();
+        const wavePortalContract = new ethers.Contract(
+          contractAddress,
+          wavePortal.abi,
+          signer
+        );
+        const waveTxn = await wavePortalContract.wave(inputMessage);
+        setInputMessage("");
+        console.log(`Mining...${waveTxn.hash}`);
+        await waveTxn.wait();
+        console.log(`Mined -- ${waveTxn.hash}`);
+        getAllWaves();
+      } else {
+        console.log("Ethereum object doesn't exist!");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const formatDate = (date) => {
+    return [date.getDate(), date.getMonth(), date.getFullYear()].join("/");
+  };
+
+  const getAllWaves = async () => {
+    try {
+      const { ethereum } = window;
+      if (ethereum) {
+        const provider = new ethers.providers.Web3Provider(ethereum);
+        const signer = provider.getSigner();
+        const wavePortalContract = new ethers.Contract(
+          contractAddress,
+          wavePortal.abi,
+          signer
+        );
+        const waves = await wavePortalContract.getAllWaves();
+        let wavesCleaned = [];
+        waves.forEach((i) => {
+          let time = new Date(Number(i.timestamp) * 1000);
+          wavesCleaned.push({
+            address: i.waver,
+            timestamp: formatDate(time),
+            message: i.message,
+          });
+        });
+        setAllWaves(wavesCleaned);
+        console.log(wavesCleaned);
+      } else {
+        console.log("Ethereum object doesn't exist!");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    checkIfWalletIsConnected();
+  }, []);
 
   return (
     <div className="mainContainer">
-
       <div className="dataContainer">
-        <div className="header">
-        👋 Hey there!
-        </div>
+        <div className="header">👋 Hey there!</div>
 
         <div className="bio">
-        I am Hoang, besides chocolate and other sweetness goodies
-        <br/>I really love a good wave.
-        <br/>Connect your Ethereum wallet and wave at me!
+          I am Hoang, besides chocolate and other sweetness goodies
+          <br />I really love a good wave.
         </div>
-        <div className="waveButton">
-        <button onClick={null}>
-          Wave at Me
-        </button>
-        {!currentAccount && (
-          <button className="waveButton" onClick={connectWallet}>
-            Connect Wallet
-          </button>
-        )}
+        <form className="bio" onSubmit={wave}>
+          <label htmlFor="message">Type in your message: </label>
+          <input
+            type="text"
+            name="message"
+            id="message"
+            onChange={(e) => setInputMessage(e.target.value)}
+            value={inputMessage}
+          ></input>
+          <div>
+            <button type="submit">Wave at Me</button>
+          </div>
+        </form>
+        <div>
+          {!currentAccount && (
+            <div className="bio">
+              <div>Connect your Ethereum wallet and wave at me!</div>
+              <button className="waveButton" onClick={connectWallet}>
+                Connect Wallet
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="content">
+          <div>
+            <b>Total waves: {allWaves.length}</b>
+          </div>
+          {allWaves.map((i) => {
+            return (
+              <div key={allWaves.indexOf(i)}>
+                On {i.timestamp},<b> address </b>
+                {i.address} <b>said:</b> {i.message}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
