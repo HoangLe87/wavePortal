@@ -132,7 +132,7 @@ export default function App() {
       const signer = provider.getSigner();
       wavePortalContract = new ethers.Contract(
         contractAddress,
-        contractABI,
+        wavePortal.abi,
         signer
       );
       wavePortalContract.on("NewWave", onNewWave);
