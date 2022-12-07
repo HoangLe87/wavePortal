@@ -152,6 +152,8 @@ export default function App() {
         <div className="bio">
           I am Hoang, besides chocolate and other sweetness goodies
           <br />I really love a good wave.
+          <br />
+          Wave at me to get a 50% chance to win some Ether!
         </div>
         <form className="bio" onSubmit={wave}>
           <label htmlFor="message">Type in your message: </label>
